@@ -1,164 +1,220 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Regalos</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 20px;
-    }
+<meta charset="UTF-8">
+<title>Regalos de Boda</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    .regalo {
-      padding: 15px;
-      margin: 10px 0;
-      background: white;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      border: 1px solid #ddd;
-    }
+<style>
+  body {
+    margin:0;
+    background:#fafafa;
+    font-family:"Segoe UI", sans-serif;
+  }
+  .center { text-align:center; padding:30px; }
 
-    .regalo img {
-      width: 120px;
-      height: auto;
-      border-radius: 5px;
-    }
+  .welcome-img {
+    width:100%;
+    max-width:420px;
+    border-radius:20px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  }
 
-    .agotado {
-      opacity: 0.5;
-      pointer-events: none;
-      background: #d0d0d0;
-    }
+  .hidden { display:none; }
 
-    button {
-      padding: 10px 20px;
-      border-radius: 6px;
-      border: none;
-      background: #0077ff;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(260px,1fr));
+    gap: 25px;
+    padding: 20px;
+  }
 
-    button:disabled {
-      background: gray;
-      cursor: not-allowed;
-    }
-  </style>
+  .card {
+    background:white;
+    border-radius:14px;
+    overflow:hidden;
+    cursor:pointer;
+    border:3px solid transparent;
+    transition:.25s ease;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  .card img {
+    width:100%;
+    height:200px;
+    object-fit:cover;
+  }
+
+  .card-content { padding:16px; }
+
+  .agotado {
+    opacity:0.4;
+    pointer-events:none;
+  }
+
+  #confirm-btn {
+    display:block;
+    margin:25px auto;
+    padding:12px 30px;
+    background:#0077ff;
+    color:white;
+    border:none;
+    border-radius:12px;
+    font-size:18px;
+    cursor:pointer;
+  }
+  #confirm-btn:disabled {
+    background:#aaa;
+    cursor:not-allowed;
+  }
+</style>
 </head>
 
 <body>
-  <h2>Selecciona tu regalo 🎁</h2>
 
-  <div id="contenedor"></div>
+<div id="welcome" class="center">
+  <img class="welcome-img" src="https://raw.githubusercontent.com/Ch3lo94/Regalos_Boda/main/images/IMG-20251127-WA0008.jpg">
+  <h2>Nos ayudarías mucho con estas cosas que nos faltan ❤️</h2>
+  <p>Ingresá con tu cuenta de Google y seleccioná lo que desees regalarnos.</p>
 
-  <button id="btnEnviar">Enviar</button>
+  <div id="g_id_onload"
+    data-client_id="342769047778-jc52eh3n59a3vjocagmomi8pln5kbqv3.apps.googleusercontent.com"
+    data-callback="handleCredentialResponse">
+  </div>
 
-  <script>
-    let usuario = null;
-    let regalos = [];
-    let seleccion = [];
+  <div class="g_id_signin"
+    data-type="standard"
+    data-size="large"
+    data-theme="filled_blue">
+  </div>
+</div>
 
-    // =============================
-    //  LOGIN GOOGLE
-    // =============================
-    google.accounts.id.initialize({
-      client_id: "342769047778-jc52eh3n59a3vjocagmomi8pln5kbqv3.apps.googleusercontent.com",
-      callback: handleCredentialResponse
-    });
-    google.accounts.id.prompt();
+<div id="catalogo" class="hidden">
+  <h1 class="center">Elegí un regalo</h1>
+  <div id="grid" class="grid"></div>
+  <button id="confirm-btn" disabled>Confirmar selección</button>
+</div>
 
-    function handleCredentialResponse(response) {
-      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+<script>
+const API = "https://script.google.com/macros/s/AKfycbw152pXv-HCV21cLHtN8DaE8MjaNKbIZXKPOH_lGHoHz4wg53hGGLc--1d_83uu1gtn/exec";
 
-      const partes = payload.name.split(" ");
-      usuario = {
-        nombre: partes[0],
-        apellido: partes.slice(1).join(" "),
-        email: payload.email
-      };
+let usuario = null;
+let seleccion = [];
 
-      cargarRegalos();
-    }
+// ----------------------------------------------------------
+// FUNCIÓN - Mostrar mensaje final si ya respondió
+// ----------------------------------------------------------
+function mostrarMensajeFinal() {
+  document.body.innerHTML = `
+    <div class="center">
+      <h1>¡Gracias por tu regalo! 🎁</h1>
+      <p>Tu respuesta ya quedó registrada ❤️</p>
+    </div>`;
+}
 
-    // =============================
-    // CARGAR REGALOS DEL SERVIDOR
-    // =============================
-    async function cargarRegalos() {
-      const r = await fetch("exec_url_aqui?list=1");
-      regalos = await r.json();
-      mostrar();
-    }
+// ----------------------------------------------------------
+// LOGIN GOOGLE
+// ----------------------------------------------------------
+async function handleCredentialResponse(response) {
 
-    function mostrar() {
-      const div = document.getElementById("contenedor");
-      div.innerHTML = "";
+  const payload = JSON.parse(atob(response.credential.split('.')[1]));
 
-      regalos.forEach(r => {
-        const caja = document.createElement("div");
-        caja.className = "regalo";
-        if (r.stock <= 0) caja.classList.add("agotado");
+  usuario = {
+    nombre: payload.given_name,
+    apellido: payload.family_name,
+    email: payload.email.trim().toLowerCase()
+  };
 
-        caja.innerHTML = `
-          <img src="${r.imagen}" />
-          <div>
-            <h3>${r.nombre}</h3>
-            <p>${r.descripcion}</p>
-            <button 
-             ${r.stock <= 0 ? "disabled" : ""}
-             onclick="toggle(${r.id})">
-             Seleccionar
-            </button>
-          </div>
-        `;
+  // BLOQUEO LOCAL
+  if (localStorage.getItem("respondio_" + usuario.email)) {
+    mostrarMensajeFinal();
+    return;
+  }
 
-        div.appendChild(caja);
-      });
-    }
+  // BLOQUEO BACKEND
+  const valid = await fetch(API + "?email=" + usuario.email);
+  const result = await valid.json();
 
-    function toggle(id) {
-      if (seleccion.includes(id)) {
-        seleccion = seleccion.filter(x => x !== id);
-      } else {
-        seleccion.push(id);
-      }
-    }
+  if (result.yaRespondio === true) {
+    localStorage.setItem("respondio_" + usuario.email, "1");
+    mostrarMensajeFinal();
+    return;
+  }
 
-    // =============================
-    // ENVIAR FORMULARIO
-    // =============================
-    document.getElementById("btnEnviar").onclick = async () => {
-      if (seleccion.length === 0) {
-        alert("Debes elegir al menos un regalo.");
-        return;
-      }
+  // Mostrar catálogo
+  document.getElementById("welcome").classList.add("hidden");
+  document.getElementById("catalogo").classList.remove("hidden");
+  cargarCatalogo();
+}
 
-      const r = await fetch("https://script.google.com/macros/s/AKfycbxuABiOY1J8S8ntmJ0TAfzHHvFvO6y3qiC34dPfG4g-qSg8gFj__hx-2EkotUO4RYDj/exec", {
-        method: "POST",
-        body: JSON.stringify({
-          nombre: usuario.nombre,
-          apellido: usuario.apellido,
-          email: usuario.email,
-          seleccion
-        })
-      });
+// ----------------------------------------------------------
+// Cargar catálogo
+// ----------------------------------------------------------
+async function cargarCatalogo() {
+  const res = await fetch(API);
+  const items = await res.json();
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
 
-      const data = await r.json();
+  items.forEach(item => {
+    const card = document.createElement("div");
 
-      if (data.error === "email_ya_usado") {
-        alert("❗ Ya registraste un regalo con este correo.");
-        return;
-      }
+    card.className = "card";
+    if (item.stockRestante <= 0) card.classList.add("agotado");
 
-      if (data.success) {
-        alert("¡Gracias! Tu elección fue guardada ❤️");
-        location.reload();
-      }
-    };
-  </script>
+    card.innerHTML = `
+      <img src="${item.imagen}">
+      <div class="card-content">
+        <h3>${item.nombre}</h3>
+        <p>${item.descripcion || ''}</p>
+      </div>
+    `;
+
+    card.onclick = () => toggle(item.id, card);
+    grid.appendChild(card);
+  });
+}
+
+// ----------------------------------------------------------
+// Selección
+// ----------------------------------------------------------
+function toggle(id, card) {
+  if (seleccion.includes(id)) {
+    seleccion = seleccion.filter(x => x !== id);
+    card.style.border = "3px solid transparent";
+  } else {
+    seleccion.push(id);
+    card.style.border = "3px solid #0077ff";
+  }
+
+  document.getElementById("confirm-btn").disabled = seleccion.length === 0;
+}
+
+// ----------------------------------------------------------
+// Enviar selección
+// ----------------------------------------------------------
+document.getElementById("confirm-btn").onclick = async () => {
+
+  const resp = await fetch(API, {
+    method: "POST",
+    body: JSON.stringify({
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      email: usuario.email,
+      seleccion
+    })
+  });
+
+  const r = await resp.json();
+
+  if (r.success) {
+    localStorage.setItem("respondio_" + usuario.email, "1");
+    mostrarMensajeFinal();
+  } else {
+    alert("Error: " + r.error);
+  }
+};
+</script>
 
 </body>
 </html>
