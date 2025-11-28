@@ -1,129 +1,189 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Regalos</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regalos de Boda</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: #fafafa;
+    }
 
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; background:#f7f7f7; }
-  #bienvenido, #catalogo { max-width: 600px; margin: auto; }
-  .item {
-    background: white; padding: 15px; border-radius: 10px;
-    margin-bottom: 15px; box-shadow: 0 0 5px rgba(0,0,0,0.2);
-  }
-  .item img { width: 100%; border-radius: 10px; }
-  .item button {
-    margin-top: 10px; padding: 10px; width: 100%;
-    border: none; background:#007bff; color:white;
-    border-radius: 8px; font-size:16px; cursor:pointer;
-  }
-  .selected button { background: green !important; }
-  #confirmar-btn {
-    margin-top: 20px; display:none; background:#28a745 !important;
-  }
-</style>
+    .center {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+      padding: 20px;
+    }
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+    #foto-boda {
+      width: 75%;
+      max-width: 380px;
+      border-radius: 14px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      margin-bottom: 25px;
+    }
 
+    h2 { font-weight: 600; margin-bottom: 10px; }
+    p { font-weight: 300; max-width: 330px; }
+
+    #catalogo {
+      display: none;
+      padding: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .item {
+      background: #fff;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .item img {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    .item h3 {
+      margin: 10px 0 5px;
+      font-size: 18px;
+    }
+
+    .item p { margin: 0; font-size: 14px; }
+
+    .item button {
+      margin-top: 10px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #ff4d6d;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .item button.selected {
+      background: #2ecc71;
+    }
+  </style>
 </head>
+
 <body>
+  <!-- PANTALLA DE BIENVENIDA -->
+  <div id="welcome" class="center">
+    <img id="foto-boda" src="https://raw.githubusercontent.com/Ch3lo94/Regalos_Boda/main/images/IMG-20251127-WA0008.jpg">
+    <h2>Nos ayudarías mucho con estas cosas que nos faltan ❤️</h2>
+    <p>Por favor ingresá con Google para ver y elegir un regalo</p>
+    <div id="googleLogin"></div>
+  </div>
 
-<!-- LOGIN -->
-<div id="bienvenido">
-  <h2 style="text-align:center;">Iniciar sesión</h2>
-  <div id="googleLogin"></div>
-</div>
-
-<!-- CATÁLOGO -->
-<div id="catalogo" style="display:none;">
-  <h2 style="text-align:center;">Catálogo de Regalos</h2>
-  <div id="lista"></div>
-  <button id="confirmar-btn">Confirmar selección</button>
-</div>
+  <!-- CATÁLOGO -->
+  <div id="catalogo">
+    <h2 style="text-align:center;">Catálogo de Regalos</h2>
+    <div class="grid" id="lista"></div>
+    <button id="confirm-btn" style="display:none; width:100%; margin-top:20px; padding:12px; border:none; background:#2d6cdf; color:white; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer;">Confirmar regalo seleccionado</button>
+  </div>
 
 <script>
-let seleccion = null;
-let userEmail = null;
+  let seleccion = null;
+  let userEmail = null;
 
-window.onload = () => {
-  google.accounts.id.initialize({
-    client_id: "AKfycbwY5TFcoek-m0zWHTNGDp8LF_1uGKZvS6Ear6kPErZFz8R2Fl9MuDKx885b_RFufvWI",
-    callback: handleCredentialResponse
-  });
+  window.onload = () => {
+    google.accounts.id.initialize({
+      client_id: "AKfycbwY5TFocek-mo2wHTNGDp8LF_1uGKZvS6Ear6kPErZFz8R2Fl9MuDKx885b_RFufvWI",
+      callback: handleCredentialResponse
+    });
+    google.accounts.id.renderButton(document.getElementById("googleLogin"), { theme: "outline", size: "large" });
+  };
 
-  google.accounts.id.renderButton(
-    document.getElementById("googleLogin"),
-    { theme: "outline", size: "large" }
-  );
-};
+  function handleCredentialResponse(response) {
+    const data = JSON.parse(atob(response.credential.split('.')[1]));
+    userEmail = data.email;
+    document.getElementById("welcome").style.display = "none";
+    document.getElementById("catalogo").style.display = "block";
+    cargarCatalogo();
+  }
 
-function handleCredentialResponse(response) {
-  const data = JSON.parse(atob(response.credential.split('.')[1]));
-  userEmail = data.email;
+  function cargarCatalogo() {
+  fetch("https://script.google.com/macros/s/AKfycbwY5TFocek-mo2wHTNGDp8LF_1uGKZvS6Ear6kPErZFz8R2Fl9MuDKx885b_RFufvWI/exec")
+    .then(r => r.json())
+    .then(regalos => {
+      const cont = document.getElementById("lista");
+      cont.innerHTML = "";
 
-  document.getElementById("bienvenido").style.display = "none";
-  document.getElementById("catalogo").style.display = "block";
-  cargarCatalogo();
-}
+      regalos.forEach(reg => {
+        const div = document.createElement("div");
+        div.className = "item";
 
-function cargarCatalogo() {
-  const URL_STOCK =
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjpCXd4OsYOfhRamCDGBGAudi3ugOIqKzgaeVaqz0Dre2GV3a_s26KxDmEVRB0B8j6gDFniJCJoAav/gviz/tq?gid=149275084&tqx=out:json";
+        div.innerHTML = `
+          <img src="${reg.imagen}">
+          <h3>${reg.nombre}</h3>
+          <p>${reg.descripcion || ""}</p>
+          <p>Stock: ${reg.stockRestante}</p>
+          <button onclick="toggle('${reg.id}', this)" 
+                  ${reg.stockRestante <= 0 ? "disabled style='background:#ccc;'" : ""}>
+            Seleccionar
+          </button>
+        `;
 
-  fetch(URL_STOCK)
-    .then(r => r.text())
-    .then(txt => {
-      const json = JSON.parse(txt.substring(47, txt.length - 2));
-      const rows = json.table.rows;
-
-      const regalos = rows.map(r => ({
-        nombre: r.c[1]?.v || "",
-        max: r.c[2]?.v || 0,
-        stockRestante: r.c[3]?.v || 0,
-        imagen: r.c[4]?.v || ""
-      }));
-
-      mostrarCatalogo(regalos);
+        cont.appendChild(div);
+      });
     });
 }
 
-function mostrarCatalogo(regalos) {
-  const cont = document.getElementById("lista");
-  cont.innerHTML = "";
-
-  regalos.forEach((reg, index) => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <img src="${reg.imagen}">
-      <h3>${reg.nombre}</h3>
-      <p>Existencias: ${reg.stockRestante}</p>
-      <button onclick="seleccionar(${index}, this)">Seleccionar</button>
-    `;
-    cont.appendChild(div);
-  });
-}
-
-function seleccionar(id, btn) {
-  document.querySelectorAll(".item button").forEach(b => {
-    b.parentElement.classList.remove("selected");
-  });
-
-  btn.parentElement.classList.add("selected");
+function toggle(id, btn) {
+  document.querySelectorAll('.item button').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
   seleccion = id;
-
-  document.getElementById("confirmar-btn").style.display = "block";
+  document.getElementById('confirm-btn').style.display = 'block';
 }
 
-document.getElementById("confirmar-btn").onclick = () => {
-  if (seleccion === null) return alert("Seleccioná un regalo.");
+document.getElementById('confirm-btn').onclick = () => {
+  if (!seleccion) return;
 
-  alert("¡Gracias por tu regalo! ❤️");
-  document.getElementById("confirmar-btn").style.display = "none";
-  cargarCatalogo();
+  fetch("https://script.google.com/macros/s/AKfycbwY5TFocek-mo2wHTNGDp8LF_1uGKZvS6Ear6kPErZFz8R2Fl9MuDKx885b_RFufvWI/exec", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      nombre: "Invitado",
+      apellido: "",
+      email: userEmail,
+      seleccion: [seleccion]   // ← IDs como tu Apps Script espera
+    })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.success) {
+      alert("¡Gracias por tu regalo! 💖");
+      cargarCatalogo();
+      document.getElementById('confirm-btn').style.display = 'none';
+    } else {
+      alert(res.error || "Ocurrió un error");
+    }
+  });
 };
-</script>
 
-</body>
-</html>
+
+
+
+
+
