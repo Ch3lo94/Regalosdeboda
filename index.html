@@ -1,11 +1,164 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Redirigiendo...</title>
-  <meta http-equiv="refresh" content="0; url=login.html">
+  <base target="_top">
+  <style>
+    body { font-family: Arial; }
+
+    .hidden { display: none; }
+
+    /* Tarjeta de regalo */
+    .item {
+      border: 2px solid #ccc;
+      padding: 10px;
+      margin: 10px;
+      width: 200px;
+      display: inline-block;
+      text-align: center;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .item img {
+      width: 120px;
+      height: auto;
+    }
+
+    /* Seleccionado */
+    .selected {
+      border: 3px solid #007bff;
+      box-shadow: 0 0 8px #007bff;
+    }
+
+    /* Sin stock */
+    .disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+  </style>
+
+  <script>
+    let seleccion = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("formEmail").classList.remove("hidden");
+      document.getElementById("pantallaRegalos").classList.add("hidden");
+    });
+
+    // =============================
+    // 1️⃣ VALIDAR EMAIL
+    // =============================
+    function validarEmail() {
+      const email = document.getElementById("email").value.trim().toLowerCase();
+
+      if (email === "") {
+        alert("Ingresá tu email");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(r => {
+          if (r.yaRespondio) {
+            alert("Este correo ya respondió. Si lo borrás de Sheet puede volver a participar.");
+          } else {
+            cargarRegalos();
+            document.getElementById("formEmail").classList.add("hidden");
+            document.getElementById("pantallaRegalos").classList.remove("hidden");
+          }
+        })
+        .checkEmail(email);
+    }
+
+    // =============================
+    // 2️⃣ CARGAR REGALOS
+    // =============================
+    function cargarRegalos() {
+      google.script.run.withSuccessHandler(renderRegalos).getRegalos();
+    }
+
+    function renderRegalos(lista) {
+      const cont = document.getElementById("regalos");
+      cont.innerHTML = "";
+
+      lista.forEach(r => {
+        const disabled = r.stockRestante <= 0 ? "disabled" : "";
+
+        cont.innerHTML += `
+          <div class="item ${disabled}" id="item-${r.id}" onclick="toggle(${r.id})">
+            <img src="${r.imagen}">
+            <h3>${r.nombre}</h3>
+          </div>
+        `;
+      });
+    }
+
+    // =============================
+    // 3️⃣ SELECCIÓN MÚLTIPLE
+    // =============================
+    function toggle(id) {
+      const card = document.getElementById("item-" + id);
+
+      if (seleccion.includes(id)) {
+        seleccion = seleccion.filter(x => x !== id);
+        card.classList.remove("selected");
+      } else {
+        seleccion.push(id);
+        card.classList.add("selected");
+      }
+    }
+
+    // =============================
+    // 4️⃣ ENVIAR RESPUESTA
+    // =============================
+    function enviar() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const apellido = document.getElementById("apellido").value.trim();
+      const email = document.getElementById("email").value.trim().toLowerCase();
+
+      if (seleccion.length === 0) {
+        alert("Elegí al menos un regalo");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(r => {
+          if (!r.success) {
+            if (r.error === "email_ya_usado") alert("Este correo ya participó.");
+            if (r.error === "sin_stock") alert("Uno de los regalos ya no tiene stock.");
+          } else {
+            alert("¡Gracias por participar!");
+            location.reload();
+          }
+        })
+        .guardarRespuesta(nombre, apellido, email, seleccion);
+    }
+  </script>
 </head>
+
 <body>
-  <p>Redirigiendo al login...</p>
+
+  <!-- 1️⃣ PANTALLA DE EMAIL -->
+  <div id="formEmail">
+    <h2>Ingresá tu email</h2>
+    <input id="email" placeholder="Email"><br><br>
+    <button onclick="validarEmail()">Continuar</button>
+  </div>
+
+  <!-- 2️⃣ PANTALLA DE REGALOS -->
+  <div id="pantallaRegalos" class="hidden">
+
+    <h2>Completá tus datos y elegí tus regalos</h2>
+
+    <input id="nombre" placeholder="Nombre"><br>
+    <input id="apellido" placeholder="Apellido"><br><br>
+
+    <h3>Regalos:</h3>
+    <div id="regalos">Cargando...</div>
+
+    <br><br>
+    <button onclick="enviar()">Enviar</button>
+  </div>
+
 </body>
 </html>
