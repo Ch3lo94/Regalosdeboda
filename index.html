@@ -4,7 +4,290 @@
 <meta charset="UTF-8">
 <title>Regalos de Boda</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Regalos de Boda</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
+<style>
+body {
+  margin:0;
+  background:#fafafa;
+  font-family:"Segoe UI", sans-serif;
+}
+
+/* Encabezados centrados y texto */
+.center { 
+  text-align:center; 
+  width:90%;        /* ocupar casi todo el ancho en móviles */
+  max-width:500px;  /* límite en pantallas grandes */
+  padding:20px;
+  box-sizing:border-box;
+  margin:0 auto;
+}
+
+h1 { font-size:28px; margin-bottom:15px; }
+h2 { font-size:24px; margin-bottom:10px; }
+p  { font-size:16px; line-height:1.4; }
+
+/* Imagen bienvenida */
+.welcome-img {
+  width:100%;
+  max-width:420px;
+  height:auto;       /* escala proporcional */
+  border-radius:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+}
+
+.hidden { display:none; }
+
+/* --- Grid adaptativo --- */
+.grid-wrapper {
+  width:100%;
+  padding:20px;
+  box-sizing:border-box;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background:white;
+  border-radius:14px;
+  overflow:hidden;
+  cursor:pointer;
+  border:3px solid transparent;
+  transition:.25s ease;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow:0 6px 16px rgba(0,0,0,0.12);
+}
+
+.selected {
+  border:3px solid #d4af37 !important; /* borde dorado */
+  box-shadow:0 6px 18px rgba(212,175,55,0.6) !important;
+  transform: scale(1.02);
+}
+
+.card img {
+  width:100%;
+  height:200px;
+  object-fit:cover;
+}
+
+.card-content { padding:16px; }
+
+.agotado {
+  opacity:0.4;
+  pointer-events:none;
+}
+
+/* Botón confirmar */
+#confirm-btn {
+  display:block;
+  margin:25px auto;
+  padding:12px 30px;
+  background:#0077ff;
+  color:white;
+  border:none;
+  border-radius:12px;
+  font-size:18px;
+  cursor:pointer;
+}
+#confirm-btn:disabled {
+  background:#aaa;
+  cursor:not-allowed;
+}
+
+/* Botón Google centrado */
+#google-btn-wrapper {
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-top:20px;
+}
+
+.g_id_signin > div,
+.g_id_signin iframe {
+  margin: 0 auto !important;
+  display:block !important;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1024px) {
+  h1 { font-size:26px; }
+  h2 { font-size:22px; }
+  p  { font-size:15px; }
+  .card img { height:180px; }
+}
+
+@media (max-width: 768px) {
+  h1 { font-size:24px; }
+  h2 { font-size:20px; }
+  p  { font-size:14px; }
+  .card img { height:160px; }
+  .card-content { padding:12px; }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size:20px; }
+  h2 { font-size:18px; }
+  p  { font-size:13px; }
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  .card img { height:120px; }
+  .card-content { padding:8px; }
+  #confirm-btn { padding:10px 20px; font-size:16px; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- Pantalla de bienvenida / login Google -->
+<div id="welcome" class="center">
+  <img class="welcome-img" src="https://raw.githubusercontent.com/Ch3lo94/Regalos_Boda/main/images/IMG-20251127-WA0008.jpg">
+  <h2>Nos ayudarías mucho con estas cosas que nos faltan ❤️</h2>
+  <p>Ingresá con tu cuenta de Google y seleccioná lo que desees regalarnos.</p>
+
+  <div id="google-btn-wrapper">
+      <div id="g_id_onload"
+        data-client_id="342769047778-jc52eh3n59a3vjocagmomi8pln5kbqv3.apps.googleusercontent.com"
+        data-callback="handleCredentialResponse">
+      </div>
+
+      <div class="g_id_signin"
+        data-type="standard"
+        data-size="large"
+        data-theme="filled_blue">
+      </div>
+  </div>
+</div>
+
+<!-- Catálogo de regalos -->
+<div id="catalogo" class="hidden">
+  <h1 class="center">Elegí uno o más regalo</h1>
+  <div class="grid-wrapper">
+    <div id="grid" class="grid"></div>
+  </div>
+  <button id="confirm-btn" disabled>Confirmar selección</button>
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbyISWbCW9HkNFs_4tqYFjNrQW6GLU9F-MwytJq1f_ilyB0Y5lF3H7znpV_0CRCWiLSS/exec";
+
+let usuario = null;
+let seleccion = [];
+
+// Mostrar mensaje final
+function mostrarMensajeFinal() {
+  document.body.innerHTML = `
+    <div class="center">
+      <h1>¡Gracias por tu regalo! 🎁</h1>
+      <p>Tu respuesta ya quedó registrada ❤️</p>
+    </div>`;
+}
+
+// Login Google
+async function handleCredentialResponse(response) {
+  const payload = JSON.parse(atob(response.credential.split('.')[1]));
+  usuario = {
+    nombre: payload.given_name,
+    apellido: payload.family_name,
+    email: payload.email.trim().toLowerCase()
+  };
+
+  if (localStorage.getItem("respondio_" + usuario.email)) {
+    mostrarMensajeFinal();
+    return;
+  }
+
+  const valid = await fetch(API + "?email=" + usuario.email);
+  const result = await valid.json();
+
+  if (result.yaRespondio === true) {
+    localStorage.setItem("respondio_" + usuario.email, "1");
+    mostrarMensajeFinal();
+    return;
+  }
+
+  document.getElementById("welcome").classList.add("hidden");
+  document.getElementById("catalogo").classList.remove("hidden");
+  cargarCatalogo();
+}
+
+// Cargar catálogo
+async function cargarCatalogo() {
+  const res = await fetch(API);
+  const items = await res.json();
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  items.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "card";
+    if (item.stockRestante <= 0) card.classList.add("agotado");
+
+    card.innerHTML = `
+      <img src="${item.imagen}">
+      <div class="card-content">
+        <h3>${item.nombre}</h3>
+        <p>${item.descripcion || ''}</p>
+      </div>
+    `;
+
+    card.onclick = () => toggle(item.id, card);
+    grid.appendChild(card);
+  });
+}
+
+// Selección
+function toggle(id, card) {
+  if (seleccion.includes(id)) {
+    seleccion = seleccion.filter(x => x !== id);
+    card.classList.remove("selected");
+  } else {
+    seleccion.push(id);
+    card.classList.add("selected");
+  }
+  document.getElementById("confirm-btn").disabled = seleccion.length === 0;
+}
+
+// Confirmar selección
+document.getElementById("confirm-btn").onclick = async () => {
+  const resp = await fetch(API, {
+    method: "POST",
+    body: JSON.stringify({
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      email: usuario.email,
+      seleccion
+    })
+  });
+
+  const r = await resp.json();
+
+  if (r.success) {
+    localStorage.setItem("respondio_" + usuario.email, "1");
+    mostrarMensajeFinal();
+  } else {
+    alert("Error: " + r.error);
+  }
+};
+</script>
+
+</body>
+</html>
 <style>
 body {
   margin:0;
